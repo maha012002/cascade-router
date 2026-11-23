@@ -4,7 +4,7 @@ A learned router that decides, per query, which LLM (from cheap to expensive) to
 answer quality per dollar. Evaluated offline on RouterBench precomputed LLM outputs, served via a
 FastAPI endpoint.
 
-> Status: **M3 (calibration + error analysis)** complete. Full README is written in M5.
+> Status: **M4 (serving)** complete. Full README is written in M5.
 > See [docs/DATA_CARD.md](docs/DATA_CARD.md), [docs/results/](docs/results/), and [docs/decisions/](docs/decisions/).
 
 ## Quickstart
@@ -20,9 +20,21 @@ make embed                    # MiniLM embeddings + handcrafted features (CPU, R
 make train                    # learned routers on every split (CPU, RAM-gated)
 make calibrate                # ECE before/after; does calibration change routing?
 make errors                   # router vs oracle by source/length/domain
+make artifact                 # export LightGBM serving bundle
+make serve                    # FastAPI on http://127.0.0.1:8000
+make bench                    # CPU latency p50/p95
+make docker-run               # docker compose up --build
 make mlflow-ui                # browse runs (SQLite store: mlflow.db)
 make test                     # unit + integration tests
 make eda                      # re-execute notebooks/01_eda.ipynb
+```
+
+Example request:
+
+```bash
+curl -s http://127.0.0.1:8000/health
+curl -s http://127.0.0.1:8000/route -H "Content-Type: application/json" \
+  -d "{\"prompt\": \"What is 15% of 80?\", \"lambda\": 40}"
 ```
 
 ## Data and acknowledgements

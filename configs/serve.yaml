@@ -1,0 +1,19 @@
+# Online serving (Milestone 4).
+seed: 42
+router_version: lightgbm-id-v1
+
+split: id
+router: lightgbm
+baseline_config: configs/eval_baselines.yaml
+routers_config: configs/routers.yaml
+features_config: configs/features.yaml
+
+artifact_dir: artifacts/serve/lightgbm-id-v1
+
+# API defaults when the request omits lambda/budget.
+default_lambda: 40.0   # ~b25 operating point from M3 error analysis
+
+# Optional Redis: set env CACHE_REDIS_URL=redis://localhost:6379/0 to enable.
+# If unset or unreachable, an in-process dict cache is used (or cache is off if enable_cache=false).
+enable_cache: true
+cache_ttl_seconds: 3600

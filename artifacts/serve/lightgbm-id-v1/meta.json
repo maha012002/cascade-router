@@ -1,0 +1,39 @@
+{
+  "router_version": "lightgbm-id-v1",
+  "router": "lightgbm",
+  "split": "id",
+  "seed": 42,
+  "default_lambda": 40.0,
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+  "n_features": 393,
+  "n_train": 25518,
+  "n_val": 5497,
+  "best_iterations": [
+    108,
+    133,
+    180,
+    106,
+    94,
+    183,
+    159,
+    138,
+    81,
+    169,
+    115
+  ],
+  "models": [
+    "WizardLM/WizardLM-13B-V1.2",
+    "claude-instant-v1",
+    "claude-v1",
+    "claude-v2",
+    "gpt-3.5-turbo-1106",
+    "gpt-4-1106-preview",
+    "meta/code-llama-instruct-34b-chat",
+    "meta/llama-2-70b-chat",
+    "mistralai/mistral-7b-chat",
+    "mistralai/mixtral-8x7b-chat",
+    "zero-one-ai/Yi-34B-Chat"
+  ],
+  "n_models": 11
+}

@@ -1,6 +1,6 @@
 PY ?= python
 
-.PHONY: setup data splits baselines eda lint format test test-unit mlflow-ui embed train calibrate errors eval serve
+.PHONY: setup data splits baselines eda lint format test test-unit mlflow-ui embed train calibrate errors eval artifact serve bench docker-build docker-run
 
 setup:            ## install pinned deps + the package in editable mode
 	$(PY) -m pip install -r requirements-dev.txt -e .
@@ -49,5 +49,17 @@ errors:           ## router vs oracle error analysis (source/length/domain)
 
 eval: baselines train calibrate errors
 
-serve:
-	@echo "'make serve' is not implemented yet (see milestone M4)" && exit 1
+artifact:         ## train LightGBM on ID and write artifacts/serve/<version>
+	$(PY) -m router.serve.export_artifact --config configs/serve.yaml
+
+serve:            ## run FastAPI locally (needs `make artifact` once)
+	$(PY) -m uvicorn router.serve.app:app --host 127.0.0.1 --port 8000
+
+bench:            ## CPU latency p50/p95 (needs artifact)
+	$(PY) scripts/bench_latency.py --config configs/serve.yaml
+
+docker-build:     ## build the serving image (needs artifact on disk)
+	docker build -t cascade-router:latest .
+
+docker-run:       ## one-command run on :8000
+	docker compose up --build

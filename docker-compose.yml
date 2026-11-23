@@ -1,0 +1,17 @@
+services:
+  router:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      SERVE_CONFIG: configs/serve.yaml
+      EMBED_DEVICE: cpu
+      # Uncomment to use Redis caching:
+      # CACHE_REDIS_URL: redis://redis:6379/0
+    # depends_on:
+    #   - redis
+
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"

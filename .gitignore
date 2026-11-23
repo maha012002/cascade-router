@@ -7,8 +7,11 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Data and artefacts are reproducible from code; never commit them.
+# Exception: the small serving bundle under artifacts/serve/ (needed for Docker).
 data/
 mlruns/
 mlartifacts/
 mlflow.db
-artifacts/
+artifacts/*
+!artifacts/serve/
+!artifacts/serve/**/
