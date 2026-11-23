@@ -1,0 +1,18 @@
+# Baseline evaluation (Milestone 1).
+splits: [id, lobo_mmlu, lobo_hellaswag, lobo_gsm8k, lobo_arc_challenge,
+         lobo_winogrande, lobo_mbpp, lobo_misc]
+eval_fold: test
+
+# Cost budgets as fractions of the always-best model's mean test cost.
+budgets_frac_of_best_cost: {b10: 0.10, b25: 0.25, b50: 0.50}
+# "Cost to reach X% of always-best quality".
+target_frac_of_best_quality: 0.95
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  artifact_dir: mlartifacts
+  experiment: cascade-router
+
+outputs:
+  results_csv: artifacts/m1_baselines.csv
+  figure_dir: docs/figures

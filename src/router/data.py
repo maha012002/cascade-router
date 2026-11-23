@@ -16,6 +16,7 @@ import argparse
 import ast
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from router.config import PROJECT_ROOT, load_config
@@ -150,6 +151,19 @@ def build(raw_path: Path, processed_dir: Path) -> tuple[pd.DataFrame, pd.DataFra
     outcomes.to_parquet(processed_dir / "outcomes.parquet", index=False)
     prompts.to_parquet(processed_dir / "prompts.parquet", index=False)
     return outcomes, prompts
+
+
+def to_matrices(
+    outcomes: pd.DataFrame, prompt_ids: list[str] | pd.Index
+) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """(quality, cost) as (n_prompts, n_models) arrays in ``prompt_ids`` order, plus model names."""
+    sub = outcomes[outcomes["prompt_id"].isin(prompt_ids)]
+    quality = sub.pivot(index="prompt_id", columns="model", values="quality")
+    cost = sub.pivot(index="prompt_id", columns="model", values="cost")
+    quality, cost = quality.reindex(prompt_ids), cost.reindex(prompt_ids)
+    if quality.isna().any().any() or cost.isna().any().any():
+        raise ValueError("Missing outcomes for some requested prompt_ids")
+    return quality.to_numpy(), cost[quality.columns].to_numpy(), list(quality.columns)
 
 
 def load_outcomes(processed_dir: str | Path = "data/processed") -> pd.DataFrame:

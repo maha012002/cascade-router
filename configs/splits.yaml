@@ -1,0 +1,25 @@
+# Split protocol (Milestone 1).
+seed: 42
+
+# Rows removed before splitting (3-row smoke-test eval, not a real benchmark).
+exclude_eval_names: [test-match]
+
+near_duplicates:
+  # TF-IDF word 1-2 grams; terms in >1% of prompts are dropped so shared
+  # templates (GSM8K few-shot prefix, "Print only a single choice ...") don't count.
+  ngram_range: [1, 2]
+  max_df: 0.01
+  # Cosine >= 0.7 links two prompts. Chosen by reading pairs per similarity band:
+  # >= 0.7 = Winogrande twins, MMLU questions sharing a passage, ARC with shuffled options;
+  # 0.5-0.7 = same template, different question.
+  threshold: 0.7
+
+in_distribution:
+  fractions: {train: 0.70, val: 0.15, test: 0.15}
+
+leave_one_benchmark_out:
+  # mtbench (80 prompts) is too small to be a meaningful test fold; it stays in training.
+  held_out_sources: [mmlu, hellaswag, gsm8k, arc_challenge, winogrande, mbpp, misc]
+  val_fraction: 0.15
+
+output_dir: data/processed
