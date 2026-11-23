@@ -18,8 +18,8 @@ limit_threads(2)
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="configs/serve.yaml")
-    parser.add_argument("--n", type=int, default=50, help="number of timed requests")
-    parser.add_argument("--warmup", type=int, default=3)
+    parser.add_argument("--n", type=int, default=1000, help="number of timed requests")
+    parser.add_argument("--warmup", type=int, default=20)
     args = parser.parse_args()
     cfg = load_config(args.config)
     artifact = PROJECT_ROOT / cfg["artifact_dir"]

@@ -1,0 +1,14 @@
+# Paired bootstrap CIs (M6 step 2).
+baseline_config: configs/eval_baselines.yaml
+routers_config: configs/routers.yaml
+
+bootstrap:
+  n_resamples: 1000
+  seed: 42
+  # Same split list as baselines; override with a shorter list for smoke runs.
+  splits: [id, lobo_mmlu, lobo_hellaswag, lobo_gsm8k, lobo_arc_challenge,
+           lobo_winogrande, lobo_mbpp, lobo_misc]
+  methods: [zero_router, task_aware, knn, logreg, lightgbm, mlp]
+
+outputs:
+  results_csv: docs/results/m6_bootstrap.csv

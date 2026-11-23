@@ -1,0 +1,8 @@
+# Task-aware zero router evaluation (M6 step 1).
+seed: 42
+baseline_config: configs/eval_baselines.yaml
+routers_config: configs/routers.yaml  # reuse lambda grid
+
+outputs:
+  results_csv: docs/results/m6_task_aware.csv
+  figure_dir: docs/figures

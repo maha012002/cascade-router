@@ -53,8 +53,9 @@ Full schema, costs, and caveats (including degenerate Llama-2 MMLU responses): *
    label cannot trade off \(\lambda\).
 4. **Policy** — \(m^* = \arg\max_m[\hat q - \lambda \hat c]\). Cost at route time is predicted from
    prompt length (output tokens unknown online).
-5. **Chosen router for serving: LightGBM** (best ID AUC; small artifact).
-   ([ADR 0005](docs/decisions/0005-chosen-router.md))
+5. **Chosen router for serving: LightGBM** (best ID *point estimate*; small artifact). Bootstrap
+   CIs put it within noise of kNN/MLP and of a task-aware zero router — see Robustness and
+   [ADR 0005](docs/decisions/0005-chosen-router.md).
 
 ## Baselines
 
@@ -65,6 +66,7 @@ All model choices that need statistics are made on **train**, never test ([ADR 0
 | Always-best | Always route to the train-best mean-quality model (usually GPT-4) |
 | Random mixture | Mix always-cheapest and always-best |
 | Zero router | Mix models on the **train** single-model cost–quality hull (strongest prompt-agnostic baseline) |
+| Task-aware zero | Per-source train hull; LOBO held-out sources fall back to the global train hull |
 | Oracle | Upper bound: route with *true* \(q\) and \(c\) (exact frontier) |
 
 ## Results (measured)
@@ -77,13 +79,15 @@ Numbers from `make train` / `make baselines`. Full tables: [docs/results/](docs/
 |---|---|---|---|---|---|
 | Random mixture | 0.547 | 0.354 | 0.425 | 0.543 | 0.918 |
 | Zero router | 0.706 | 0.656 | 0.677 | 0.711 | 0.716 |
+| Task-aware zero | 0.754 | 0.693 | 0.745 | 0.777 | 0.237 |
 | Logistic regression | 0.753 | 0.695 | 0.748 | 0.767 | 0.211 |
 | MLP | 0.756 | 0.703 | 0.749 | 0.773 | 0.221 |
 | kNN | 0.756 | 0.702 | 0.749 | 0.773 | 0.224 |
-| **LightGBM** | **0.757** | **0.702** | **0.750** | **0.774** | **0.220** |
+| LightGBM (served) | 0.757 | 0.702 | 0.750 | 0.774 | 0.220 |
 | Oracle | 0.908 | 0.911 | 0.911 | 0.911 | 0.020 |
 
-LightGBM closes **~25%** of the zero-router → oracle gap on ID.
+LightGBM closes **~25%** of the *prompt-agnostic* zero-router → oracle gap on ID. Against the
+task-aware zero router the remaining gap is **0.003 AUC** (not significant — see Robustness).
 
 ### Leave-one-benchmark-out (mean AUC)
 
@@ -102,6 +106,30 @@ lexical twins dominate that fold; prompt-agnostic ranking wins there.
 ### Cost–quality plot (ID)
 
 ![Learned routers vs baselines on ID](docs/figures/m2_routers_id.png)
+
+## Robustness (bootstrap + task-aware)
+
+Paired bootstrap, **1,000** resamples, seed **42** (`make bootstrap` →
+[docs/results/m6_bootstrap.csv](docs/results/m6_bootstrap.csv)). Task-aware numbers:
+[docs/results/m6_task_aware.csv](docs/results/m6_task_aware.csv).
+
+**ID — 95% CIs for LightGBM − other (AUC):**
+
+| Contrast | Δ AUC mean [95% CI] | CI contains 0? |
+|---|---|---|
+| − zero_router | +0.051 [+0.046, +0.056] | no |
+| − task_aware | +0.003 [−0.0003, +0.007] | **yes** |
+| − knn | +0.001 [−0.002, +0.005] | yes |
+| − logreg | +0.005 [+0.001, +0.009] | no |
+| − mlp | +0.002 [−0.002, +0.005] | yes |
+
+So the headline ID gain is robust vs the prompt-agnostic zero router, but **not** vs knowing the
+benchmark family. Absolute ID LightGBM AUC CI: **[0.748, 0.766]**.
+
+**LOBO — LightGBM − zero_router AUC** (task-aware ≡ zero_router under 100% global fallback):
+significant *for* LightGBM on mmlu / gsm8k / mbpp / misc; CI contains 0 on hellaswag /
+arc_challenge; significant *against* LightGBM on winogrande ([−0.033, −0.003]). Full write-up:
+[ADR 0005](docs/decisions/0005-chosen-router.md).
 
 ## Calibration
 
@@ -139,8 +167,9 @@ make serve      # http://127.0.0.1:8000
 | `GET /health` | status, `router_version`, model count |
 | `POST /route` | `{prompt, lambda? \| budget?}` → chosen model, per-model \(\hat q\), expected costs |
 
-**Measured CPU latency** (n=30 timed routes, cache off): **p50 = 16.3 ms**, **p95 = 18.6 ms**.
-Optional Redis via `CACHE_REDIS_URL`; otherwise an in-process cache. ([ADR 0006](docs/decisions/0006-serving.md))
+**Measured CPU latency** (n=1000 timed routes, cache off, 20 warmup): **p50 = 18.7 ms**,
+**p95 = 39.1 ms**, mean 22.8 ms. Optional Redis via `CACHE_REDIS_URL`; otherwise an in-process
+cache. ([ADR 0006](docs/decisions/0006-serving.md))
 
 ## Limitations
 
@@ -149,7 +178,10 @@ Optional Redis via `CACHE_REDIS_URL`; otherwise an in-process cache. ([ADR 0006]
 - **Quality ≠ user satisfaction** — labels are benchmark correctness / grades, not preference.
 - **Graded GSM8K** is not binary correctness (see data card).
 - **Some labels reflect harness failures** (e.g. Llama-2 emitting `"\nAnswer"` on MMLU).
-- **OOD is hard** — Winogrande LOBO shows learned routers can lose to a strong zero router.
+- **OOD is hard** — Winogrande LOBO shows learned routers can lose to a strong zero router
+  (bootstrap ΔAUC CI excludes 0 against LightGBM).
+- **ID “learned” gain ≈ source label** — task-aware zero router matches LightGBM within noise;
+  prompt features add little once the family is known.
 
 ## Reproduce
 
@@ -162,6 +194,8 @@ make splits
 make baselines
 make embed                    # needs ≥ ~3 GiB free RAM (gated)
 make train
+make task-aware               # per-source hull baseline
+make bootstrap                # paired CIs (needs artifacts/predictions from train)
 make calibrate
 make errors
 make artifact

@@ -41,6 +41,12 @@ embed:            ## MiniLM embeddings + handcrafted features (CPU, RAM-gated)
 train:            ## train + evaluate learned routers on every split (RAM-gated)
 	$(PY) -m router.run_routers --config configs/routers.yaml
 
+task-aware:       ## M6: task-aware zero router vs zero_router / LightGBM
+	$(PY) -m router.run_task_aware --config configs/task_aware.yaml
+
+bootstrap:        ## M6: paired bootstrap 95% CIs (needs artifacts/predictions)
+	$(PY) -m router.run_bootstrap --config configs/bootstrap.yaml
+
 calibrate:        ## ECE before/after isotonic + temperature; routing impact
 	$(PY) -m router.run_calibration --config configs/calibration.yaml
 
@@ -55,8 +61,8 @@ artifact:         ## train LightGBM on ID and write artifacts/serve/<version>
 serve:            ## run FastAPI locally (needs `make artifact` once)
 	$(PY) -m uvicorn router.serve.app:app --host 127.0.0.1 --port 8000
 
-bench:            ## CPU latency p50/p95 (needs artifact)
-	$(PY) scripts/bench_latency.py --config configs/serve.yaml
+bench:            ## CPU latency p50/p95, n=1000 (needs artifact)
+	$(PY) scripts/bench_latency.py --config configs/serve.yaml --n 1000 --warmup 20
 
 docker-build:     ## build the serving image (needs artifact on disk)
 	docker build -t cascade-router:latest .

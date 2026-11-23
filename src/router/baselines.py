@@ -43,6 +43,113 @@ def mixture_curve(points: pd.DataFrame, models: list[str]) -> np.ndarray:
     return upper_hull(sel["cost"].to_numpy(), sel["quality"].to_numpy())
 
 
+def fit_task_aware_hulls(
+    train: pd.DataFrame,
+) -> tuple[dict[str, list[str]], dict[str, pd.DataFrame], list[str], pd.DataFrame]:
+    """Per-source TRAIN hulls for the task-aware zero router.
+
+    Returns
+    -------
+    hulls_by_source
+        source -> models on that source's train single-model upper hull (cost-asc).
+    means_by_source
+        source -> DataFrame indexed by model with columns cost, quality (train means).
+    global_hull
+        hull models from all train prompts (fallback when a source is absent in train).
+    global_means
+        train mean cost/quality per model over all train prompts.
+    """
+    global_means = train.groupby("model")[["cost", "quality"]].mean()
+    global_hull = pick_hull_models(train)
+
+    hulls_by_source: dict[str, list[str]] = {}
+    means_by_source: dict[str, pd.DataFrame] = {}
+    for source, g in train.groupby("source", sort=True):
+        means = g.groupby("model")[["cost", "quality"]].mean()
+        # Need every model present; RouterBench always has all models per prompt.
+        idx = upper_hull_indices(means["cost"].to_numpy(), means["quality"].to_numpy())
+        hulls_by_source[str(source)] = means.index[idx].tolist()
+        means_by_source[str(source)] = means
+    return hulls_by_source, means_by_source, global_hull, global_means
+
+
+def task_aware_scores(
+    sources: list[str] | np.ndarray,
+    models: list[str],
+    hulls_by_source: dict[str, list[str]],
+    means_by_source: dict[str, pd.DataFrame],
+    global_hull: list[str],
+    global_means: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int]:
+    """Per-prompt (p_hat, cost_est, allowed) for the task-aware zero router.
+
+    Non-hull models are blocked with quality -1 and inflated cost so they never win
+    under ``route``. Returns (p_hat, cost_est, allowed, n_fallback).
+    """
+    model_index = {m: i for i, m in enumerate(models)}
+    sources = list(sources)
+    n = len(sources)
+    n_fallback = 0
+    p_hat = np.zeros((n, len(models)), dtype=float)
+    cost_est = np.zeros((n, len(models)), dtype=float)
+    allowed = np.zeros((n, len(models)), dtype=bool)
+
+    for i, source in enumerate(sources):
+        if source in hulls_by_source:
+            hull = hulls_by_source[source]
+            means = means_by_source[source]
+        else:
+            hull = global_hull
+            means = global_means
+            n_fallback += 1
+        for m in hull:
+            j = model_index[m]
+            allowed[i, j] = True
+            p_hat[i, j] = float(means.loc[m, "quality"])
+            cost_est[i, j] = float(means.loc[m, "cost"])
+        blocked = ~allowed[i]
+        p_hat[i, blocked] = -1.0
+        cost_est[i, blocked] = float(means["cost"].max()) + 1.0
+    return p_hat, cost_est, allowed, n_fallback
+
+
+def task_aware_zero_router_curve(
+    quality: np.ndarray,
+    cost: np.ndarray,
+    sources: list[str] | np.ndarray,
+    models: list[str],
+    hulls_by_source: dict[str, list[str]],
+    means_by_source: dict[str, pd.DataFrame],
+    global_hull: list[str],
+    global_means: pd.DataFrame,
+    lambdas: list[float],
+) -> tuple[np.ndarray, int]:
+    """Cost–quality curve of the task-aware zero router on a test fold.
+
+    For each prompt, use the TRUE source label. Route with train mean quality/cost of that
+    source's hull models (prompt-agnostic within the source). If the source has no train
+    hull (LOBO held-out), fall back to the global train hull.
+
+    Returns (curve, n_fallback) where n_fallback is how many test prompts used the global hull.
+    """
+    from router.evaluate import operating_point, upper_hull
+    from router.policy import route
+
+    p_hat, cost_est, allowed, n_fallback = task_aware_scores(
+        sources, models, hulls_by_source, means_by_source, global_hull, global_means
+    )
+    pts = []
+    for lam in lambdas:
+        choices = route(p_hat, cost_est, lam)
+        for i, ch in enumerate(choices):
+            if not allowed[i, ch]:
+                choices[i] = int(np.argmin(np.where(allowed[i], cost_est[i], np.inf)))
+        c_mean, q_mean = operating_point(choices, quality, cost)
+        pts.append((c_mean, q_mean))
+    pts_arr = np.asarray(pts, dtype=float)
+    return upper_hull(pts_arr[:, 0], pts_arr[:, 1]), n_fallback
+
+
 def oracle_curve(quality: np.ndarray, cost: np.ndarray) -> np.ndarray:
     """Exact cost-quality frontier of a router that knows every true label.
 
