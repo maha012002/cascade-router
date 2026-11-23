@@ -4,8 +4,8 @@ A learned router that decides, per query, which LLM (from cheap to expensive) to
 answer quality per dollar. Evaluated offline on RouterBench precomputed LLM outputs, served via a
 FastAPI endpoint.
 
-> Status: **M1 (splits, baselines, evaluation harness)** complete. Full README is written in M5.
-> See [docs/DATA_CARD.md](docs/DATA_CARD.md) and [docs/decisions/](docs/decisions/).
+> Status: **M2 (learned routers)** complete. Full README is written in M5.
+> See [docs/DATA_CARD.md](docs/DATA_CARD.md), [docs/results/](docs/results/), and [docs/decisions/](docs/decisions/).
 
 ## Quickstart
 
@@ -16,6 +16,8 @@ make setup                    # pip install -r requirements-dev.txt -e .
 make data                     # download RouterBench @ pinned revision -> data/processed/*.parquet
 make splits                   # near-duplicate groups + ID / leave-one-benchmark-out splits
 make baselines                # baselines + oracle on every split -> docs/figures, MLflow
+make embed                    # MiniLM embeddings + handcrafted features (CPU, RAM-gated)
+make train                    # learned routers on every split (CPU, RAM-gated)
 make mlflow-ui                # browse runs (SQLite store: mlflow.db)
 make test                     # unit + integration tests
 make eda                      # re-execute notebooks/01_eda.ipynb

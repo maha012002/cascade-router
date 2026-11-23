@@ -1,0 +1,18 @@
+# Embedding + handcrafted features (Milestone 2).
+# Tuned for a laptop with limited free RAM: small batches, chunked encode, 2 threads.
+seed: 42
+
+embedding:
+  model_name: sentence-transformers/all-MiniLM-L6-v2
+  # Pin the Hub revision so a fresh clone downloads identical weights.
+  revision: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+  batch_size: 16          # keep low so peak RAM stays small
+  chunk_size: 2000        # encode + free intermediates every N prompts
+  normalize: true
+
+# Abort rather than thrash the OS if free RAM is below this (GiB).
+min_free_ram_gb: 3.0
+
+paths:
+  embeddings: data/processed/embeddings_minilm.parquet
+  features: data/processed/handcrafted.parquet

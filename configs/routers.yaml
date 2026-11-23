@@ -1,0 +1,33 @@
+# Learned routers (Milestone 2).
+seed: 0
+baseline_config: configs/eval_baselines.yaml   # splits, budgets, target, MLflow settings
+features_config: configs/features.yaml
+
+# lambda in quality per USD. Cost gaps between models are ~1e-5..1e-3 USD and quality gaps
+# ~0.01..1, so break-even lambdas span ~10..1e5. Grid also includes 0 and inf.
+lambda_grid: {min: 1.0, max: 1000000.0, n: 61}
+
+# inputs: "embeddings" = 384-d MiniLM only; "all" = embeddings + 9 handcrafted features.
+# Each grid entry is tried; the one with the lowest soft log-loss on VAL is kept.
+# Resource-safe defaults: small kNN grid, LightGBM/MLP capped to 2 threads / small batches.
+routers:
+  knn:
+    inputs: embeddings
+    grid: [{k: 15}, {k: 50}, {k: 100}]
+  logreg:
+    inputs: all
+    grid: [{C: 0.1}, {C: 1.0}]
+  lightgbm:
+    inputs: all
+    grid: [{}]
+  mlp:
+    inputs: all
+    grid: [{}]
+
+# Abort training if free RAM is below this (GiB).
+min_free_ram_gb: 2.5
+
+outputs:
+  results_csv: artifacts/m2_results.csv
+  summary_csv: artifacts/m2_summary.csv
+  figure_dir: docs/figures

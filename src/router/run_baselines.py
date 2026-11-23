@@ -1,6 +1,7 @@
 """Evaluate all baselines on every split; write a results table, plots, and MLflow runs."""
 
 import argparse
+from dataclasses import dataclass
 from pathlib import Path
 
 import mlflow
@@ -32,9 +33,29 @@ METRICS = [
 ]
 
 
-def baseline_curves(
-    train: pd.DataFrame, points: pd.DataFrame
-) -> tuple[dict[str, np.ndarray], str, str]:
+@dataclass
+class SplitEval:
+    """Everything needed to score any router on one split's test fold."""
+
+    split: str
+    ids: dict[str, list[str]]  # fold -> prompt_ids (sorted)
+    quality: np.ndarray  # (n_test, n_models)
+    cost: np.ndarray  # (n_test, n_models)
+    models: list[str]
+    points: pd.DataFrame  # single-model operating points on test
+    curves: dict[str, np.ndarray]  # baseline + oracle curves
+    cheapest: str
+    best: str
+    c_lo: float
+    c_hi: float
+    budgets: dict[str, float]
+    target: float
+
+    def metrics(self, curve: np.ndarray) -> dict[str, float]:
+        return summarize(curve, self.c_lo, self.c_hi, self.budgets, self.target)
+
+
+def baseline_curves(train: pd.DataFrame, points: pd.DataFrame) -> tuple[dict, str, str]:
     """Curves for every prompt-agnostic baseline; cheapest/best are chosen on train."""
     cheapest, best = pick_cheapest(train), pick_best(train)
     by_model = points.set_index("model")
@@ -51,35 +72,43 @@ def baseline_curves(
     return curves, cheapest, best
 
 
-def evaluate_split(
-    outcomes: pd.DataFrame, splits: pd.DataFrame, split: str, cfg: dict
-) -> tuple[pd.DataFrame, dict[str, np.ndarray], pd.DataFrame, dict[str, float]]:
-    """Metrics table, curves, single-model points and budgets for one split."""
+def prepare_split(outcomes: pd.DataFrame, splits: pd.DataFrame, split: str, cfg: dict) -> SplitEval:
+    """Test matrices, baseline curves, oracle, and the shared metric reference points."""
     s = splits[splits["split"] == split]
-    train_ids = s.loc[s["fold"] == "train", "prompt_id"]
-    test_ids = s.loc[s["fold"] == cfg["eval_fold"], "prompt_id"].sort_values().tolist()
-
-    train = outcomes[outcomes["prompt_id"].isin(train_ids)]
-    quality, cost, models = to_matrices(outcomes, test_ids)
+    ids = {f: sorted(g["prompt_id"]) for f, g in s.groupby("fold")}
+    train = outcomes[outcomes["prompt_id"].isin(ids["train"])]
+    quality, cost, models = to_matrices(outcomes, ids[cfg["eval_fold"]])
     points = single_model_points(models, quality, cost)
 
     curves, cheapest, best = baseline_curves(train, points)
     curves["oracle"] = oracle_curve(quality, cost)
 
     by_model = points.set_index("model")
-    c_lo, c_hi = float(by_model.loc[cheapest, "cost"]), float(by_model.loc[best, "cost"])
-    budgets = {k: f * c_hi for k, f in cfg["budgets_frac_of_best_cost"].items()}
-    target = cfg["target_frac_of_best_quality"] * float(by_model.loc[best, "quality"])
-
-    table = pd.DataFrame(
-        [
-            {"split": split, "method": name, **summarize(curve, c_lo, c_hi, budgets, target)}
-            for name, curve in curves.items()
-        ]
+    c_hi = float(by_model.loc[best, "cost"])
+    return SplitEval(
+        split=split,
+        ids=ids,
+        quality=quality,
+        cost=cost,
+        models=models,
+        points=points,
+        curves=curves,
+        cheapest=cheapest,
+        best=best,
+        c_lo=float(by_model.loc[cheapest, "cost"]),
+        c_hi=c_hi,
+        budgets={k: f * c_hi for k, f in cfg["budgets_frac_of_best_cost"].items()},
+        target=cfg["target_frac_of_best_quality"] * float(by_model.loc[best, "quality"]),
     )
-    table["n_test"] = len(test_ids)
-    table["cheapest_model"], table["best_model"] = cheapest, best
-    return table, curves, points, budgets
+
+
+def baseline_table(ev: SplitEval) -> pd.DataFrame:
+    table = pd.DataFrame(
+        [{"split": ev.split, "method": n, **ev.metrics(c)} for n, c in ev.curves.items()]
+    )
+    table["n_test"] = len(ev.quality)
+    table["cheapest_model"], table["best_model"] = ev.cheapest, ev.best
+    return table
 
 
 def log_run(split: str, table: pd.DataFrame, artifacts: list[Path]) -> None:
@@ -115,10 +144,11 @@ def main() -> None:
 
     tables = []
     for split in cfg["splits"]:
-        table, curves, points, budgets = evaluate_split(outcomes, splits, split, cfg)
-        n_test = int(table["n_test"].iloc[0])
+        ev = prepare_split(outcomes, splits, split, cfg)
+        table = baseline_table(ev)
         fig_path = fig_dir / f"m1_baselines_{split}.png"
-        plot_curves(curves, points, f"Baselines - {split} (n_test={n_test})", fig_path, budgets)
+        title = f"Baselines - {split} (n_test={len(ev.quality)})"
+        plot_curves(ev.curves, ev.points, title, fig_path, ev.budgets)
         log_run(split, table, [fig_path, PROJECT_ROOT / args.config])
         tables.append(table)
 

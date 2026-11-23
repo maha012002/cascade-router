@@ -35,7 +35,13 @@ test:             ## all tests (integration tests skip if data is missing)
 test-unit:        ## tests that need no downloaded data (what CI runs)
 	$(PY) -m pytest -m "not integration"
 
-eval: baselines   ## learned routers join this target in M2
+embed:            ## MiniLM embeddings + handcrafted features (CPU, RAM-gated)
+	$(PY) -m router.features --config configs/features.yaml
 
-embed train serve:
-	@echo "'make $@' is not implemented yet (see milestones M2-M4)" && exit 1
+train:            ## train + evaluate learned routers on every split (RAM-gated)
+	$(PY) -m router.run_routers --config configs/routers.yaml
+
+eval: baselines train
+
+serve:
+	@echo "'make serve' is not implemented yet (see milestone M4)" && exit 1

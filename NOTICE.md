@@ -44,9 +44,16 @@ Model names (GPT-4, GPT-3.5, Claude, Llama 2, Code Llama, Mistral, Mixtral, Yi, 
 only as labels in the dataset. They are trademarks of their respective owners. This project does
 not run, host, or redistribute any of these models.
 
+## Embedding model
+
+**all-MiniLM-L6-v2** by the Sentence Transformers project
+([sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2),
+revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`). Weights are downloaded at `make embed` time
+and are **not** redistributed in this repository. Licence: Apache-2.0 (upstream).
+
 ## Software
 
 This project uses, without modifying or redistributing them, open-source libraries including
-pandas, NumPy, PyArrow, SciPy, scikit-learn, Matplotlib, MLflow, huggingface_hub, PyYAML, Jupyter,
-pytest, and Ruff. Each is distributed under its own licence. See `requirements*.txt` for the exact
-versions.
+pandas, NumPy, PyArrow, SciPy, scikit-learn, LightGBM, PyTorch, sentence-transformers, Matplotlib,
+MLflow, huggingface_hub, PyYAML, Jupyter, pytest, and Ruff. Each is distributed under its own
+licence. See `requirements*.txt` for the exact versions.
