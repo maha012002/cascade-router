@@ -1,0 +1,15 @@
+# Data acquisition + normalisation config (Milestone 0).
+dataset:
+  repo_id: withmartian/routerbench
+  # Pin the exact dataset commit so a fresh clone downloads identical bytes.
+  revision: 784021482c3f320c6619ed4b3bb3b41a21424fcb
+  files:
+    - routerbench_0shot.pkl
+    - routerbench_5shot.pkl
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+# Which pickle feeds the tidy table used by the rest of the pipeline.
+primary_file: routerbench_0shot.pkl
