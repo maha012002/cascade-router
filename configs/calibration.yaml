@@ -1,0 +1,25 @@
+# Calibration + whether it changes routing (Milestone 3).
+seed: 42
+baseline_config: configs/eval_baselines.yaml
+features_config: configs/features.yaml  # unused; predictions are loaded from disk
+predictions_dir: artifacts/predictions
+
+# Routers to calibrate (must have saved *.npz from `make train`).
+routers: [lightgbm, knn]
+splits: [id, lobo_mmlu, lobo_hellaswag, lobo_gsm8k, lobo_arc_challenge,
+         lobo_winogrande, lobo_mbpp, lobo_misc]
+
+ece_bins: 15
+# Same lambda grid idea as M2 (explicit floats; YAML 1.0e6 can become a string).
+lambda_grid: {min: 1.0, max: 1000000.0, n: 61}
+
+methods: [isotonic, temperature]
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  artifact_dir: mlartifacts
+  experiment: cascade-router
+
+outputs:
+  results_csv: docs/results/m3_calibration.csv
+  figure_dir: docs/figures

@@ -4,7 +4,7 @@ A learned router that decides, per query, which LLM (from cheap to expensive) to
 answer quality per dollar. Evaluated offline on RouterBench precomputed LLM outputs, served via a
 FastAPI endpoint.
 
-> Status: **M2 (learned routers)** complete. Full README is written in M5.
+> Status: **M3 (calibration + error analysis)** complete. Full README is written in M5.
 > See [docs/DATA_CARD.md](docs/DATA_CARD.md), [docs/results/](docs/results/), and [docs/decisions/](docs/decisions/).
 
 ## Quickstart
@@ -18,6 +18,8 @@ make splits                   # near-duplicate groups + ID / leave-one-benchmark
 make baselines                # baselines + oracle on every split -> docs/figures, MLflow
 make embed                    # MiniLM embeddings + handcrafted features (CPU, RAM-gated)
 make train                    # learned routers on every split (CPU, RAM-gated)
+make calibrate                # ECE before/after; does calibration change routing?
+make errors                   # router vs oracle by source/length/domain
 make mlflow-ui                # browse runs (SQLite store: mlflow.db)
 make test                     # unit + integration tests
 make eda                      # re-execute notebooks/01_eda.ipynb

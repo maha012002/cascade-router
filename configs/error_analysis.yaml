@@ -1,0 +1,35 @@
+# Error analysis vs oracle (Milestone 3).
+seed: 42
+baseline_config: configs/eval_baselines.yaml
+predictions_dir: artifacts/predictions
+
+# Primary router for the write-up (best ID AUC in M2).
+router: lightgbm
+# Also report the best LOBO-mean router for contrast.
+compare_router: knn
+
+# Operating point: pick the lambda whose *router* mean cost is closest to this
+# fraction of always-best's test cost (same budgets as M1/M2).
+budget_frac_of_best: 0.25
+lambda_grid: {min: 1.0, max: 1000000.0, n: 61}
+
+# Prompt-length bins (character count percentiles on the analysis split).
+length_bins: [0, 25, 50, 75, 100]
+
+# Coarse domain labels for sources.
+domains:
+  math: [gsm8k]
+  code: [mbpp]
+  knowledge: [mmlu, hellaswag, winogrande, arc_challenge]
+  other: [misc, mtbench]
+
+splits: [id, lobo_mmlu, lobo_hellaswag, lobo_gsm8k, lobo_arc_challenge,
+         lobo_winogrande, lobo_mbpp, lobo_misc]
+
+outputs:
+  by_source_csv: docs/results/m3_errors_by_source.csv
+  by_length_csv: docs/results/m3_errors_by_length.csv
+  by_domain_csv: docs/results/m3_errors_by_domain.csv
+  costly_mistakes_csv: docs/results/m3_costly_mistakes.csv
+  summary_md: docs/results/m3_error_analysis.md
+  figure_dir: docs/figures

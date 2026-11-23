@@ -1,6 +1,6 @@
 PY ?= python
 
-.PHONY: setup data splits baselines eda lint format test test-unit mlflow-ui embed train eval serve
+.PHONY: setup data splits baselines eda lint format test test-unit mlflow-ui embed train calibrate errors eval serve
 
 setup:            ## install pinned deps + the package in editable mode
 	$(PY) -m pip install -r requirements-dev.txt -e .
@@ -41,7 +41,13 @@ embed:            ## MiniLM embeddings + handcrafted features (CPU, RAM-gated)
 train:            ## train + evaluate learned routers on every split (RAM-gated)
 	$(PY) -m router.run_routers --config configs/routers.yaml
 
-eval: baselines train
+calibrate:        ## ECE before/after isotonic + temperature; routing impact
+	$(PY) -m router.run_calibration --config configs/calibration.yaml
+
+errors:           ## router vs oracle error analysis (source/length/domain)
+	$(PY) -m router.run_error_analysis --config configs/error_analysis.yaml
+
+eval: baselines train calibrate errors
 
 serve:
 	@echo "'make serve' is not implemented yet (see milestone M4)" && exit 1
